@@ -1,16 +1,17 @@
 import * as THREE from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { FlyControls } from 'three/examples/jsm/controls/FlyControls.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
-
-import GUI from 'lil-gui'
+import { OutlinePass } from 'three/addons/postprocessing/OutlinePass.js'
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
+import { Timer } from 'three/src/core/Timer.js'
 
 /**
  * Base
  */
 // Debug
-const gui = new GUI()
+// const gui = new GUI()
 
 // Canvas
 const canvas = document.querySelector('canvas.webgl')
@@ -22,66 +23,30 @@ const scene = new THREE.Scene()
  * Loaders
  */
 const gltfLoader = new GLTFLoader()
-const cubeTextureLoader = new THREE.CubeTextureLoader()
-const textureLoader = new THREE.TextureLoader()
-
-/**
- * Update all materials
- */
-const updateAllMaterials = () =>
-{
-  scene.traverse((child) =>
-  {
-    if(child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial)
-    {
-      child.material.envMapIntensity = 2.5
-      child.material.needsUpdate = true
-      child.castShadow = true
-      child.receiveShadow = true
-    }
-  })
-}
-
-/**
- * Environment map
- */
-const environmentMap = cubeTextureLoader.load([
-  '/textures/environmentMaps/0/px.jpg',
-  '/textures/environmentMaps/0/nx.jpg',
-  '/textures/environmentMaps/0/py.jpg',
-  '/textures/environmentMaps/0/ny.jpg',
-  '/textures/environmentMaps/0/pz.jpg',
-  '/textures/environmentMaps/0/nz.jpg'
-])
-
-scene.background = environmentMap
-scene.environment = environmentMap
 
 /**
  * Models
  */
+let model = null
+
 gltfLoader.load(
-  '/models/dt-low-poly.glb',
+  './models/dt-low-poly.glb',
   (gltf) =>
   {
-    gltf.scene.scale.set(2, 2, 2)
-    gltf.scene.rotation.y = Math.PI * 0.5
-    scene.add(gltf.scene)
-
-    updateAllMaterials()
+    model = gltf.scene
+    model.position.y = - 1.2
+    scene.add(model)
   }
 )
 
 /**
  * Lights
  */
-const directionalLight = new THREE.DirectionalLight('#ffffff', 3)
-directionalLight.castShadow = true
-directionalLight.shadow.mapSize.set(1024, 1024)
-directionalLight.shadow.camera.far = 15
-directionalLight.shadow.normalBias = 0.05
-directionalLight.position.set(0.25, 3, - 2.25)
-scene.add(directionalLight)
+const ambientLight = new THREE.AmbientLight('#ffffff', 0.9)
+scene.add(ambientLight)
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+directionalLight.position.set(5, 10, 7.5);
+scene.add(directionalLight);
 
 /**
  * Sizes
@@ -106,8 +71,8 @@ window.addEventListener('resize', () =>
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 
   // Update effect composer
-  effectComposer.setSize(sizes.width, sizes.height)
-  effectComposer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+  // effectComposer.setSize(sizes.width, sizes.height)
+  // effectComposer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 })
 
 /**
@@ -115,60 +80,63 @@ window.addEventListener('resize', () =>
  */
 // Base camera
 const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100)
-camera.position.set(4, 1, - 4)
+camera.position.set(0, 0, 0)
 scene.add(camera)
 
 // Controls
-const controls = new OrbitControls(camera, canvas)
-controls.enableDamping = true
+const controls = new FlyControls(camera, canvas)
+controls.rollSpeed = 0
+controls.autoForward = false
+controls.dragToLook = true
 
 /**
  * Renderer
  */
 const renderer = new THREE.WebGLRenderer({
-  canvas: canvas,
-  antialias: true
+    canvas: canvas
 })
-renderer.shadowMap.enabled = true
-renderer.shadowMap.type = THREE.PCFShadowMap
-renderer.toneMapping = THREE.ReinhardToneMapping
-renderer.toneMappingExposure = 1.5
 renderer.setSize(sizes.width, sizes.height)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+
+
 
 /**
  * Post processing
  */
-const renderTarget = new THREE.WebGLRenderTarget(
-  800,
-  600,
-  {
-    // samples: renderer.getPixelRatio() === 1 ? 2 : 0
-  }
-)
+// const renderTarget = new THREE.WebGLRenderTarget(
+//   800,
+//   600,
+//   {
+//     // samples: renderer.getPixelRatio() === 1 ? 2 : 0
+//   }
+// )
 
-const effectComposer = new EffectComposer(renderer, renderTarget)
-effectComposer.setSize(sizes.width, sizes.height)
-effectComposer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+// const effectComposer = new EffectComposer(renderer, renderTarget)
+// effectComposer.setSize(sizes.width, sizes.height)
+// effectComposer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 
 /**
  * Animate
  */
-const clock = new THREE.Clock()
+const timer = new Timer()
+timer.connect(document)
 
-const tick = () =>
+const tick = (timestamp) =>
 {
-  const elapsedTime = clock.getElapsedTime()
+  timer.update(timestamp)
+
+  const delta = timer.getDelta()
 
   // Update passes
-  displacementPass.material.uniforms.uTime.value = elapsedTime
 
   // Update controls
-  controls.update()
+  controls.update(delta)
 
-  // Render
-  // renderer.render(scene, camera)
-  effectComposer.render()
+  // Render using the composer, NOT the renderer
+  // composer.render();
+
+    // Render
+  renderer.render(scene, camera)
 
   // Call tick again on the next frame
   window.requestAnimationFrame(tick)

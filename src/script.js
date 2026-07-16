@@ -20,6 +20,22 @@ const canvas = document.querySelector('canvas.webgl')
 const scene = new THREE.Scene()
 
 /**
+ * Raycaster
+ */
+const raycaster = new THREE.Raycaster()
+
+/**
+ * Mouse
+ */
+const mouse = new THREE.Vector2()
+
+window.addEventListener('mousemove', (event) => 
+{
+  mouse.x = event.clientX / sizes.width * 2 - 1
+  mouse.y = - (event.clientY / sizes.height) * 2 + 1
+})
+
+/**
  * Loaders
  */
 const gltfLoader = new GLTFLoader()
@@ -75,13 +91,18 @@ window.addEventListener('resize', () =>
   // effectComposer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 })
 
+window.addEventListener('mousemove', (event) => 
+{
+  mouse.x = event.clientX / sizes.width * 2 - 1
+  mouse.y = - (event.clientY / sizes.height) * 2 + 1
+})
 
 /**
  * Camera
  */
 // Base camera
 const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100)
-camera.position.set(1, 0, 0)
+camera.position.set(0, 0, 1)
 scene.add(camera)
 
 // Controls
@@ -116,6 +137,18 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 // effectComposer.setSize(sizes.width, sizes.height)
 // effectComposer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 
+// Interactable names
+const stationNames = [
+  'dt-stellar-orientation',
+  'dt-hd-propulsion',
+  'dt-life-support',
+  'dt-oracle',
+  'dt-stellar-shield-matrix',
+  'dt-qf-calibrator',
+  'dt-omni-core',
+  'dt-door'
+];
+
 /**
  * Animate
  */
@@ -127,6 +160,31 @@ const tick = (timestamp) =>
   timer.update(timestamp)
 
   const delta = timer.getDelta()
+
+  // When model is loaded
+  if (model) {
+    // Cast a ray
+    raycaster.setFromCamera(mouse, camera)
+
+    // Test Ray intersections
+    const intersects = raycaster.intersectObject(model, true)
+
+    if (intersects.length > 0) {
+      let currentObject = intersects[0].currentObject
+      let targetFound = null
+
+      while (currentObject) {
+        if (stationNames.includes(currentObject.name)) {
+          targetFound = currentObject
+          break
+        }
+        currentObject = currentObject.parent
+      }
+      if (targetFound) {
+        console.log(`Hovered over: ${targetFound.name}`)
+      }
+    }
+  }
 
   // Update passes
 

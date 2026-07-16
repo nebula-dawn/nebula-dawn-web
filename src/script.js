@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { FlyControls } from 'three/examples/jsm/controls/FlyControls.js'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
@@ -75,19 +75,20 @@ window.addEventListener('resize', () =>
   // effectComposer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 })
 
+
 /**
  * Camera
  */
 // Base camera
 const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100)
-camera.position.set(0, 0, 0)
+camera.position.set(1, 0, 0)
 scene.add(camera)
 
 // Controls
-const controls = new FlyControls(camera, canvas)
-controls.rollSpeed = 0
-controls.autoForward = false
-controls.dragToLook = true
+const controls = new OrbitControls(camera, canvas)
+controls.enableDamping = true
+controls.maxZoom = 3
+controls.maxDistance = 1.2
 
 /**
  * Renderer
@@ -130,7 +131,7 @@ const tick = (timestamp) =>
   // Update passes
 
   // Update controls
-  controls.update(delta)
+  controls.update()
 
   // Render using the composer, NOT the renderer
   // composer.render();

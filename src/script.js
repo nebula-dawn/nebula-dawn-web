@@ -1,10 +1,6 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
-import { OutlinePass } from 'three/addons/postprocessing/OutlinePass.js'
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { Timer } from 'three/src/core/Timer.js'
 
 /**
@@ -86,9 +82,6 @@ window.addEventListener('resize', () =>
   renderer.setSize(sizes.width, sizes.height)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 
-  // Update effect composer
-  // effectComposer.setSize(sizes.width, sizes.height)
-  // effectComposer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 })
 
 window.addEventListener('mousemove', (event) => 
@@ -119,23 +112,7 @@ const renderer = new THREE.WebGLRenderer({
 })
 renderer.setSize(sizes.width, sizes.height)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-
-
-
-/**
- * Post processing
- */
-// const renderTarget = new THREE.WebGLRenderTarget(
-//   800,
-//   600,
-//   {
-//     // samples: renderer.getPixelRatio() === 1 ? 2 : 0
-//   }
-// )
-
-// const effectComposer = new EffectComposer(renderer, renderTarget)
-// effectComposer.setSize(sizes.width, sizes.height)
-// effectComposer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+document.body.appendChild(canvas)
 
 // Interactable names
 const stationNames = [
@@ -149,6 +126,14 @@ const stationNames = [
   'dt-door'
 ];
 
+
+// Selection variable
+let selectOffset = null
+let selectBool = false
+let initScale = new THREE.Vector3(0, 0, 0)
+let initObject = null
+let initTime = null
+
 /**
  * Animate
  */
@@ -159,40 +144,61 @@ const tick = (timestamp) =>
 {
   timer.update(timestamp)
 
-  const delta = timer.getDelta()
+  const elapsedTime = timer.getElapsed()
 
   // When model is loaded
   if (model) {
     // Cast a ray
     raycaster.setFromCamera(mouse, camera)
 
-    // Test Ray intersections
+    // Test Ray intersections, with the model and its children
     const intersects = raycaster.intersectObject(model, true)
 
     if (intersects.length > 0) {
-      let currentObject = intersects[0].currentObject
-      let targetFound = null
+      let currentObject = intersects[0].object
+      let target = null
 
       while (currentObject) {
         if (stationNames.includes(currentObject.name)) {
-          targetFound = currentObject
+          target = currentObject
           break
         }
         currentObject = currentObject.parent
       }
-      if (targetFound) {
-        console.log(`Hovered over: ${targetFound.name}`)
+
+      
+      // If the mouse is hovering a valid target
+      if (target) {
+        if (!initObject) {
+          initTime = elapsedTime
+          initObject = target
+          initScale = target.scale.clone()
+        }
+        // console.log(`Hovered over: ${target.name}`)
+        selectOffset = Math.sin((elapsedTime - initTime) * 4) * 0.005
+
+        target.scale.x += selectOffset
+        target.scale.y += selectOffset
+        target.scale.z += selectOffset
+        selectBool = true
+        console.log(selectOffset)
+      } 
+      else {
+        // If the mouse is not hovering a valid target, reset the scale of the previously hovered target
+        if (selectBool && initScale.x) {
+          // Reset the scale of the previously hovered target
+          initObject.scale.copy(initScale)
+          initObject = null
+          initScale.set(0,0,0)
+          selectBool = false
+        }
       }
     }
   }
 
-  // Update passes
 
   // Update controls
   controls.update()
-
-  // Render using the composer, NOT the renderer
-  // composer.render();
 
     // Render
   renderer.render(scene, camera)
